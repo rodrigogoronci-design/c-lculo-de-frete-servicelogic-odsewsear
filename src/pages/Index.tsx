@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Calculator } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -13,17 +13,22 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { destinations, vehicles, RouteData, VehicleType } from '@/lib/data'
+import { vehicles, RouteData, VehicleType } from '@/lib/data'
 import { CalculationResults } from '@/components/CalculationResults'
+import { getRotas, getTarifas, createCalculo } from '@/services/api'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function Index() {
+  const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const { toast } = useToast()
 
+  const [rotas, setRotas] = useState<any[]>([])
   const [destinationId, setDestinationId] = useState<string>(searchParams.get('destination') || '')
   const [vehicleId, setVehicleId] = useState<string>('')
   const [weight, setWeight] = useState<string>('')
   const [volume, setVolume] = useState<string>('')
+  const [isCalculating, setIsCalculating] = useState(false)
 
   const [result, setResult] = useState<{
     route: RouteData
@@ -34,7 +39,11 @@ export default function Index() {
     total: number
   } | null>(null)
 
-  const handleCalculate = (e: React.FormEvent) => {
+  useEffect(() => {
+    getRotas().then(setRotas).catch(console.error)
+  }, [])
+
+  const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!destinationId || !vehicleId || !weight || !volume) {
       toast({
@@ -45,18 +54,62 @@ export default function Index() {
       return
     }
 
-    const route = destinations.find((d) => d.id === destinationId)
+    const route = rotas.find((d) => d.id === destinationId)
     const vehicle = vehicles.find((v) => v.id === vehicleId)
 
     if (route && vehicle) {
-      const baseFreight = route.adjustedRate * vehicle.multiplier
-      const dieselCost = route.distanceKm * 1.5
-      const weightBonus = parseFloat(weight) * 0.1
-      const volumeBonus = parseFloat(volume) * 2
-      const total = baseFreight + dieselCost + route.toll + weightBonus + volumeBonus
+      setIsCalculating(true)
+      try {
+        const tarifas = await getTarifas(route.id)
+        const tarifa = tarifas.find((t) => t.tipo_veiculo === vehicle.id)
 
-      setResult({ route, vehicle, baseFreight, dieselCost, toll: route.toll, total })
-      toast({ title: 'Cálculo Concluído', description: 'O frete foi calculado com sucesso.' })
+        const tarifaPorKm = tarifa ? tarifa.valor_tarifa_km : 6.5 * vehicle.multiplier
+
+        const baseFreight = route.km * tarifaPorKm
+        const dieselCost = route.km * 1.5
+        const weightBonus = parseFloat(weight) * 0.1
+        const volumeBonus = parseFloat(volume) * 2
+        const toll = (route.km / 100) * 20
+        const total = baseFreight + dieselCost + toll + weightBonus + volumeBonus
+
+        await createCalculo({
+          usuario_id: user?.id,
+          rota_id: route.id,
+          tipo_veiculo: vehicle.id,
+          peso_kg: parseFloat(weight),
+          volume_m3: parseFloat(volume),
+          valor_tarifa_base: baseFreight,
+          valor_diesel: dieselCost,
+          valor_pedagio: toll,
+          valor_total: total,
+          data_calculo: new Date().toISOString(),
+        })
+
+        setResult({
+          route: {
+            id: route.id,
+            name: route.destino,
+            uf: route.uf,
+            region: route.regiao,
+            distanceKm: route.km,
+          },
+          vehicle,
+          baseFreight,
+          dieselCost,
+          toll,
+          total,
+        })
+        toast({ title: 'Cálculo Concluído', description: 'O frete foi calculado e registrado.' })
+      } catch (error) {
+        console.error(error)
+        toast({
+          title: 'Erro',
+          description: 'Ocorreu um erro ao calcular o frete.',
+          variant: 'destructive',
+        })
+      } finally {
+        setIsCalculating(false)
+      }
     }
   }
 
@@ -89,9 +142,9 @@ export default function Index() {
                     <SelectValue placeholder="Selecione a cidade" />
                   </SelectTrigger>
                   <SelectContent>
-                    {destinations.map((d) => (
+                    {rotas.map((d) => (
                       <SelectItem key={d.id} value={d.id}>
-                        {d.name} - {d.uf}
+                        {d.destino} - {d.uf}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -121,6 +174,7 @@ export default function Index() {
                     id="weight"
                     type="number"
                     min="0"
+                    step="0.01"
                     value={weight}
                     onChange={(e) => setWeight(e.target.value)}
                     placeholder="0"
@@ -132,6 +186,7 @@ export default function Index() {
                     id="volume"
                     type="number"
                     min="0"
+                    step="0.01"
                     value={volume}
                     onChange={(e) => setVolume(e.target.value)}
                     placeholder="0"
@@ -141,9 +196,10 @@ export default function Index() {
 
               <Button
                 type="submit"
+                disabled={isCalculating}
                 className="w-full bg-brand-orange hover:bg-[#e67e00] text-white font-semibold py-6 text-lg transition-all hover:scale-[1.02] shadow-md"
               >
-                Calcular Frete
+                {isCalculating ? 'Calculando...' : 'Calcular Frete'}
               </Button>
             </form>
           </CardContent>

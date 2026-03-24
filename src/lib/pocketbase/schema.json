@@ -1,0 +1,286 @@
+{
+  "generatedAt": "2026-03-24T17:23:38.657Z",
+  "collections": [
+    {
+      "name": "users",
+      "type": "auth",
+      "apiRules": {
+        "list": "id = @request.auth.id",
+        "view": "id = @request.auth.id",
+        "create": "",
+        "update": "id = @request.auth.id",
+        "delete": "id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avatar",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "tipo_acesso",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["CONSULTA", "ADMINISTRADOR"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
+        "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
+      ]
+    },
+    {
+      "name": "rotas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.tipo_acesso = 'ADMINISTRADOR'",
+        "update": "@request.auth.tipo_acesso = 'ADMINISTRADOR'",
+        "delete": "@request.auth.tipo_acesso = 'ADMINISTRADOR'"
+      },
+      "fields": [
+        {
+          "name": "destino",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "uf",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "regiao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "km",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "desvio",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tempo_viagem_dias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "tarifas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.tipo_acesso = 'ADMINISTRADOR'",
+        "update": "@request.auth.tipo_acesso = 'ADMINISTRADOR'",
+        "delete": "@request.auth.tipo_acesso = 'ADMINISTRADOR'"
+      },
+      "fields": [
+        {
+          "name": "rota_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "rotas"
+        },
+        {
+          "name": "tipo_veiculo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "LS_6_EIXOS",
+            "VANDERLEIA_6_EIXOS",
+            "SUPER_LS_7_EIXOS",
+            "SUPER_BITREM_9_EIXOS"
+          ]
+        },
+        {
+          "name": "valor_tarifa_km",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_tarifa_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_vigencia_inicio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_vigencia_fim",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "calculos_frete",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": null,
+        "delete": "@request.auth.tipo_acesso = 'ADMINISTRADOR'"
+      },
+      "fields": [
+        {
+          "name": "usuario_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "rota_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "rotas"
+        },
+        {
+          "name": "tipo_veiculo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "peso_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "volume_m3",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_tarifa_base",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_diesel",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_pedagio",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_total",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_calculo",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    }
+  ]
+}

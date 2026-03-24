@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, MapPin, ExternalLink } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { destinations, Region } from '@/lib/data'
-import { formatCurrency } from '@/lib/utils'
+import { Region } from '@/lib/data'
+import { getRotas } from '@/services/api'
 import {
   Pagination,
   PaginationContent,
@@ -27,18 +27,32 @@ import {
 
 export default function RoutesPage() {
   const navigate = useNavigate()
+  const [rotas, setRotas] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedRegion, setSelectedRegion] = useState<Region | 'TODAS'>('TODAS')
+  const [selectedRegion, setSelectedRegion] = useState<Region>('TODAS')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
+  useEffect(() => {
+    getRotas()
+      .then((data) => {
+        setRotas(data)
+        setIsLoading(false)
+      })
+      .catch((err) => {
+        console.error(err)
+        setIsLoading(false)
+      })
+  }, [])
+
   const filteredRoutes = useMemo(() => {
-    return destinations.filter((route) => {
-      const matchesSearch = route.name.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesRegion = selectedRegion === 'TODAS' || route.region === selectedRegion
+    return rotas.filter((route) => {
+      const matchesSearch = route.destino.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesRegion = selectedRegion === 'TODAS' || route.regiao === selectedRegion
       return matchesSearch && matchesRegion
     })
-  }, [searchTerm, selectedRegion])
+  }, [rotas, searchTerm, selectedRegion])
 
   useMemo(() => setCurrentPage(1), [searchTerm, selectedRegion])
 
@@ -47,14 +61,7 @@ export default function RoutesPage() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
   )
-  const regions: (Region | 'TODAS')[] = [
-    'TODAS',
-    'NORTE',
-    'NORDESTE',
-    'CENTRO-OESTE',
-    'SUDESTE',
-    'SUL',
-  ]
+  const regions: Region[] = ['TODAS', 'NORTE', 'NORDESTE', 'CENTRO-OESTE', 'SUDESTE', 'SUL']
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -63,7 +70,7 @@ export default function RoutesPage() {
           Tabela de Consulta de Rotas
         </h1>
         <p className="text-slate-600">
-          Explore os corredores logísticos disponíveis, distâncias e tarifas de referência.
+          Explore os corredores logísticos disponíveis, distâncias e destinos atendidos.
         </p>
       </div>
 
@@ -80,7 +87,7 @@ export default function RoutesPage() {
 
         <Tabs
           value={selectedRegion}
-          onValueChange={(v) => setSelectedRegion(v as Region | 'TODAS')}
+          onValueChange={(v) => setSelectedRegion(v as Region)}
           className="w-full lg:w-auto overflow-x-auto"
         >
           <TabsList className="w-full justify-start h-auto p-1 bg-slate-100">
@@ -105,33 +112,31 @@ export default function RoutesPage() {
                 <TableHead>Destino</TableHead>
                 <TableHead>UF</TableHead>
                 <TableHead>Região</TableHead>
-                <TableHead>KM</TableHead>
-                <TableHead>Tarifa Base (até 30/06)</TableHead>
-                <TableHead>Reajustada (01/07)</TableHead>
-                <TableHead>Pedágio</TableHead>
+                <TableHead>Distância</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedRoutes.length > 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-32 text-center text-slate-500">
+                    Carregando rotas...
+                  </TableCell>
+                </TableRow>
+              ) : paginatedRoutes.length > 0 ? (
                 paginatedRoutes.map((route) => (
                   <TableRow
                     key={route.id}
                     className="hover:bg-brand-blue/5 transition-colors group"
                   >
-                    <TableCell className="font-medium text-brand-blue">{route.name}</TableCell>
+                    <TableCell className="font-medium text-brand-blue">{route.destino}</TableCell>
                     <TableCell>{route.uf}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="bg-slate-100 text-slate-700">
-                        {route.region}
+                        {route.regiao}
                       </Badge>
                     </TableCell>
-                    <TableCell>{route.distanceKm.toLocaleString('pt-BR')} km</TableCell>
-                    <TableCell>{formatCurrency(route.baseRate)}</TableCell>
-                    <TableCell className="text-brand-orange font-medium">
-                      {formatCurrency(route.adjustedRate)}
-                    </TableCell>
-                    <TableCell>{formatCurrency(route.toll)}</TableCell>
+                    <TableCell>{route.km.toLocaleString('pt-BR')} km</TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="outline"
@@ -146,7 +151,7 @@ export default function RoutesPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-32 text-center text-slate-500">
+                  <TableCell colSpan={5} className="h-32 text-center text-slate-500">
                     Nenhuma rota encontrada.
                   </TableCell>
                 </TableRow>
@@ -156,7 +161,9 @@ export default function RoutesPage() {
         </div>
 
         <div className="md:hidden grid grid-cols-1 gap-4 p-4">
-          {paginatedRoutes.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center py-8 text-slate-500">Carregando rotas...</div>
+          ) : paginatedRoutes.length > 0 ? (
             paginatedRoutes.map((route) => (
               <Card
                 key={route.id}
@@ -166,22 +173,13 @@ export default function RoutesPage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-bold text-lg text-brand-blue flex items-center gap-1">
-                        <MapPin className="h-4 w-4" /> {route.name} - {route.uf}
+                        <MapPin className="h-4 w-4" /> {route.destino} - {route.uf}
                       </h3>
-                      <p className="text-sm text-slate-500">
-                        {route.region} • {route.distanceKm} km
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="bg-slate-50 p-2 rounded">
-                      <p className="text-slate-500 text-xs">Tarifa Base</p>
-                      <p className="font-medium">{formatCurrency(route.baseRate)}</p>
-                    </div>
-                    <div className="bg-orange-50 p-2 rounded">
-                      <p className="text-brand-orange text-xs">Reajustada</p>
-                      <p className="font-medium text-brand-orange">
-                        {formatCurrency(route.adjustedRate)}
+                      <p className="text-sm text-slate-500 mt-1">
+                        <Badge variant="outline" className="bg-slate-100 mr-2">
+                          {route.regiao}
+                        </Badge>
+                        {route.km.toLocaleString('pt-BR')} km
                       </p>
                     </div>
                   </div>
