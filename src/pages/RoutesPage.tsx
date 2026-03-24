@@ -175,12 +175,12 @@ export default function RoutesPage() {
                       <h3 className="font-bold text-lg text-brand-blue flex items-center gap-1">
                         <MapPin className="h-4 w-4" /> {route.destino} - {route.uf}
                       </h3>
-                      <p className="text-sm text-slate-500 mt-1">
+                      <div className="text-sm text-slate-500 mt-1">
                         <Badge variant="outline" className="bg-slate-100 mr-2">
                           {route.regiao}
                         </Badge>
                         {route.km.toLocaleString('pt-BR')} km
-                      </p>
+                      </div>
                     </div>
                   </div>
                   <Button
