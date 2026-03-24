@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Calculator } from 'lucide-react'
+import { Calculator, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import {
   Select,
   SelectContent,
@@ -29,6 +30,7 @@ export default function Index() {
   const [weight, setWeight] = useState<string>('')
   const [volume, setVolume] = useState<string>('')
   const [isCalculating, setIsCalculating] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const [result, setResult] = useState<{
     route: RouteData
@@ -47,6 +49,8 @@ export default function Index() {
 
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrorMsg(null)
+
     if (!destinationId || !vehicleId || !weight || !volume) {
       toast({
         title: 'Atenção',
@@ -104,11 +108,27 @@ export default function Index() {
         description: 'O frete foi calculado com sucesso pelo servidor.',
       })
     } catch (error: any) {
-      console.error(error)
-      const errorMessage =
-        error?.response?.message || error?.message || 'Ocorreu um erro ao calcular o frete.'
+      const isExpectedError =
+        error?.status === 404 || error?.response?.code === 404 || error?.response?.status === 404
+
+      // Não polui o console com erros esperados de regra de negócio
+      if (!isExpectedError) {
+        console.error('Erro detalhado:', error)
+      }
+
+      let errorMessage = 'Ocorreu um erro inesperado ao calcular o frete. Tente novamente.'
+
+      if (error?.response?.message) {
+        errorMessage = error.response.message
+      } else if (error?.message) {
+        errorMessage = error.message
+      }
+
+      setErrorMsg(errorMessage)
+      setResult(null)
+
       toast({
-        title: 'Erro no Cálculo',
+        title: isExpectedError ? 'Tarifa Indisponível' : 'Erro no Cálculo',
         description: errorMessage,
         variant: 'destructive',
       })
@@ -198,6 +218,14 @@ export default function Index() {
                 </div>
               </div>
 
+              {errorMsg && (
+                <Alert variant="destructive" className="animate-fade-in">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Não foi possível calcular</AlertTitle>
+                  <AlertDescription>{errorMsg}</AlertDescription>
+                </Alert>
+              )}
+
               <Button
                 type="submit"
                 disabled={isCalculating}
@@ -213,11 +241,12 @@ export default function Index() {
           {result ? (
             <CalculationResults {...result} />
           ) : (
-            <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300 shadow-sm p-8 text-center">
+            <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300 shadow-sm p-8 text-center transition-all">
               <Calculator className="h-16 w-16 mb-4 opacity-20 text-brand-blue" />
               <p className="text-lg font-medium text-slate-500">Aguardando dados da carga</p>
-              <p className="text-sm mt-2">
-                Preencha o formulário e clique em calcular para processar os valores no servidor.
+              <p className="text-sm mt-2 max-w-md">
+                Preencha o formulário e clique em calcular para processar os valores no servidor. Se
+                a rota ou veículo não possuir tarifa cadastrada, você será notificado.
               </p>
             </div>
           )}
