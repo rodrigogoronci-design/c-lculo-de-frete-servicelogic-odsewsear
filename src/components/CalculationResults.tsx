@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { RouteData, VehicleType } from '@/lib/data'
 import { formatCurrency } from '@/lib/utils'
-import { MapPin, Route, Wallet, Fuel, Banknote, Map } from 'lucide-react'
+import { MapPin, Route, Wallet, Fuel, Banknote, Map, CalendarClock, TrendingUp } from 'lucide-react'
 
 interface CalculationResultProps {
   route: RouteData
@@ -10,6 +10,8 @@ interface CalculationResultProps {
   dieselCost: number
   toll: number
   total: number
+  ratePerKm?: number
+  validity?: string
 }
 
 export function CalculationResults({
@@ -19,6 +21,8 @@ export function CalculationResults({
   dieselCost,
   toll,
   total,
+  ratePerKm,
+  validity,
 }: CalculationResultProps) {
   return (
     <div className="space-y-6 animate-fade-in-up opacity-0" style={{ animationDelay: '100ms' }}>
@@ -74,14 +78,14 @@ export function CalculationResults({
         </Card>
       </div>
 
-      <Card className="shadow-elevation bg-white border-0">
+      <Card className="shadow-elevation bg-white border-0 mt-6">
         <CardHeader className="bg-slate-50/50 border-b pb-4 rounded-t-xl">
           <CardTitle className="text-lg flex items-center gap-2 text-brand-blue">
             <Route className="h-5 w-5" />
-            Resumo da Rota
+            Detalhes da Rota e Tarifa
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+        <CardContent className="p-6 grid grid-cols-2 md:grid-cols-3 gap-6">
           <div className="space-y-1">
             <p className="text-sm text-slate-500 flex items-center gap-1">
               <MapPin className="h-3 w-3" /> Destino
@@ -89,21 +93,49 @@ export function CalculationResults({
             <p className="font-semibold text-slate-900">{route.name}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-sm text-slate-500">UF / Região</p>
+            <p className="text-sm text-slate-500 flex items-center gap-1">
+              <Map className="h-3 w-3" /> UF / Região
+            </p>
             <p className="font-semibold text-slate-900">
               {route.uf} - {route.region}
             </p>
           </div>
           <div className="space-y-1">
-            <p className="text-sm text-slate-500">Distância (KM)</p>
+            <p className="text-sm text-slate-500 flex items-center gap-1">
+              <Route className="h-3 w-3" /> Distância Total
+            </p>
             <p className="font-semibold text-slate-900">
               {route.distanceKm.toLocaleString('pt-BR')} km
             </p>
           </div>
           <div className="space-y-1">
-            <p className="text-sm text-slate-500">Veículo Selecionado</p>
+            <p className="text-sm text-slate-500 flex items-center gap-1">
+              <Wallet className="h-3 w-3" /> Veículo Selecionado
+            </p>
             <p className="font-semibold text-slate-900">{vehicle.name}</p>
           </div>
+
+          {ratePerKm !== undefined && (
+            <div className="space-y-1">
+              <p className="text-sm text-slate-500 flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" /> Tarifa por KM
+              </p>
+              <p className="font-semibold text-slate-900">{formatCurrency(ratePerKm)}</p>
+            </div>
+          )}
+
+          {validity && (
+            <div className="space-y-1">
+              <p className="text-sm text-slate-500 flex items-center gap-1">
+                <CalendarClock className="h-3 w-3" /> Validade da Tarifa
+              </p>
+              <p className="font-semibold text-slate-900">
+                {validity !== 'N/A'
+                  ? new Date(validity).toLocaleDateString('pt-BR')
+                  : 'Sem vencimento'}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -11,3 +11,15 @@ export const getTarifas = async (rotaId: string) => {
 export const createCalculo = async (data: any) => {
   return await pb.collection('calculos_frete').create(data)
 }
+
+export const calcularTarifaBase = async (data: {
+  rota_id: string
+  tipo_veiculo: string
+  peso_kg: number
+  volume_m3: number
+}) => {
+  return await pb.send('/backend/v1/calcular-tarifa-base', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}

@@ -15,7 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { vehicles, RouteData, VehicleType } from '@/lib/data'
 import { CalculationResults } from '@/components/CalculationResults'
-import { getRotas, getTarifas, createCalculo } from '@/services/api'
+import { getRotas, createCalculo, calcularTarifaBase } from '@/services/api'
 import { useAuth } from '@/hooks/use-auth'
 
 export default function Index() {
@@ -37,6 +37,8 @@ export default function Index() {
     dieselCost: number
     toll: number
     total: number
+    ratePerKm?: number
+    validity?: string
   } | null>(null)
 
   useEffect(() => {
@@ -54,62 +56,64 @@ export default function Index() {
       return
     }
 
-    const route = rotas.find((d) => d.id === destinationId)
-    const vehicle = vehicles.find((v) => v.id === vehicleId)
+    setIsCalculating(true)
+    try {
+      // Usa o novo endpoint no backend para o cálculo exato
+      const response = await calcularTarifaBase({
+        rota_id: destinationId,
+        tipo_veiculo: vehicleId,
+        peso_kg: parseFloat(weight),
+        volume_m3: parseFloat(volume),
+      })
 
-    if (route && vehicle) {
-      setIsCalculating(true)
-      try {
-        const tarifas = await getTarifas(route.id)
-        const tarifa = tarifas.find((t) => t.tipo_veiculo === vehicle.id)
+      const vehicle = vehicles.find((v) => v.id === vehicleId)
 
-        const tarifaPorKm = tarifa ? tarifa.valor_tarifa_km : 6.5 * vehicle.multiplier
+      // Registra no histórico com os valores processados pelo backend
+      await createCalculo({
+        usuario_id: user?.id,
+        rota_id: destinationId,
+        tipo_veiculo: vehicleId,
+        peso_kg: parseFloat(weight),
+        volume_m3: parseFloat(volume),
+        valor_tarifa_base: response.valor_tarifa_base,
+        valor_diesel: response.valor_diesel,
+        valor_pedagio: response.valor_pedagio,
+        valor_total: response.valor_total,
+        data_calculo: new Date().toISOString(),
+      })
 
-        const baseFreight = route.km * tarifaPorKm
-        const dieselCost = route.km * 1.5
-        const weightBonus = parseFloat(weight) * 0.1
-        const volumeBonus = parseFloat(volume) * 2
-        const toll = (route.km / 100) * 20
-        const total = baseFreight + dieselCost + toll + weightBonus + volumeBonus
+      setResult({
+        route: {
+          id: response.rota.id,
+          name: response.rota.destino,
+          uf: response.rota.uf,
+          region: response.rota.regiao,
+          distanceKm: response.km,
+        },
+        vehicle: vehicle || { id: vehicleId, name: vehicleId, multiplier: 1 },
+        baseFreight: response.valor_tarifa_base,
+        dieselCost: response.valor_diesel,
+        toll: response.valor_pedagio,
+        total: response.valor_total,
+        ratePerKm: response.valor_tarifa_por_km,
+        validity: response.data_vigencia,
+      })
 
-        await createCalculo({
-          usuario_id: user?.id,
-          rota_id: route.id,
-          tipo_veiculo: vehicle.id,
-          peso_kg: parseFloat(weight),
-          volume_m3: parseFloat(volume),
-          valor_tarifa_base: baseFreight,
-          valor_diesel: dieselCost,
-          valor_pedagio: toll,
-          valor_total: total,
-          data_calculo: new Date().toISOString(),
-        })
-
-        setResult({
-          route: {
-            id: route.id,
-            name: route.destino,
-            uf: route.uf,
-            region: route.regiao,
-            distanceKm: route.km,
-          },
-          vehicle,
-          baseFreight,
-          dieselCost,
-          toll,
-          total,
-        })
-        toast({ title: 'Cálculo Concluído', description: 'O frete foi calculado e registrado.' })
-      } catch (error) {
-        console.error(error)
-        toast({
-          title: 'Erro',
-          description: 'Ocorreu um erro ao calcular o frete.',
-          variant: 'destructive',
-        })
-      } finally {
-        setIsCalculating(false)
-      }
+      toast({
+        title: 'Cálculo Concluído',
+        description: 'O frete foi calculado com sucesso pelo servidor.',
+      })
+    } catch (error: any) {
+      console.error(error)
+      const errorMessage =
+        error?.response?.message || error?.message || 'Ocorreu um erro ao calcular o frete.'
+      toast({
+        title: 'Erro no Cálculo',
+        description: errorMessage,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsCalculating(false)
     }
   }
 
@@ -199,7 +203,7 @@ export default function Index() {
                 disabled={isCalculating}
                 className="w-full bg-brand-orange hover:bg-[#e67e00] text-white font-semibold py-6 text-lg transition-all hover:scale-[1.02] shadow-md"
               >
-                {isCalculating ? 'Calculando...' : 'Calcular Frete'}
+                {isCalculating ? 'Processando no Servidor...' : 'Calcular Frete'}
               </Button>
             </form>
           </CardContent>
@@ -213,7 +217,7 @@ export default function Index() {
               <Calculator className="h-16 w-16 mb-4 opacity-20 text-brand-blue" />
               <p className="text-lg font-medium text-slate-500">Aguardando dados da carga</p>
               <p className="text-sm mt-2">
-                Preencha o formulário e clique em calcular para visualizar os resultados detalhados.
+                Preencha o formulário e clique em calcular para processar os valores no servidor.
               </p>
             </div>
           )}
