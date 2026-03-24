@@ -23,3 +23,14 @@ export const calcularTarifaBase = async (data: {
     body: JSON.stringify(data),
   })
 }
+
+export const calcularDiesel = async (data: {
+  rota_id: string
+  valor_tarifa_base: number
+  data_calculo: string
+}) => {
+  return await pb.send('/backend/v1/calcular-diesel', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}

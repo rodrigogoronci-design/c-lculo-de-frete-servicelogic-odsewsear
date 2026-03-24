@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-24T20:17:27.864Z",
+  "generatedAt": "2026-03-24T20:30:20.145Z",
   "collections": [
     {
       "name": "users",
@@ -262,6 +262,58 @@
         {
           "name": "data_calculo",
           "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "configuracoes_diesel",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.tipo_acesso = 'ADMINISTRADOR'",
+        "update": "@request.auth.tipo_acesso = 'ADMINISTRADOR'",
+        "delete": "@request.auth.tipo_acesso = 'ADMINISTRADOR'"
+      },
+      "fields": [
+        {
+          "name": "data_vigencia",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_diesel_base",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "percentual_pre_gatilho",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "percentual_pos_gatilho",
+          "type": "number",
           "required": true,
           "system": false
         },

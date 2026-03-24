@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Search, MapPin, ExternalLink } from 'lucide-react'
+import { Search, MapPin, Calculator } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -14,8 +13,13 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Region } from '@/lib/data'
-import { getRotas } from '@/services/api'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import {
   Pagination,
   PaginationContent,
@@ -24,14 +28,19 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination'
+import { Region } from '@/lib/data'
+import { getRotas } from '@/services/api'
+import { FreightCalculator } from '@/components/FreightCalculator'
 
 export default function RoutesPage() {
-  const navigate = useNavigate()
   const [rotas, setRotas] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRegion, setSelectedRegion] = useState<Region>('TODAS')
   const [currentPage, setCurrentPage] = useState(1)
+  const [calcModalOpen, setCalcModalOpen] = useState(false)
+  const [selectedRouteForCalc, setSelectedRouteForCalc] = useState<any>(null)
+
   const itemsPerPage = 10
 
   useEffect(() => {
@@ -55,6 +64,11 @@ export default function RoutesPage() {
   }, [rotas, searchTerm, selectedRegion])
 
   useMemo(() => setCurrentPage(1), [searchTerm, selectedRegion])
+
+  const openCalcModal = (route: any) => {
+    setSelectedRouteForCalc(route)
+    setCalcModalOpen(true)
+  }
 
   const totalPages = Math.ceil(filteredRoutes.length / itemsPerPage)
   const paginatedRoutes = filteredRoutes.slice(
@@ -84,7 +98,6 @@ export default function RoutesPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-
         <Tabs
           value={selectedRegion}
           onValueChange={(v) => setSelectedRegion(v as Region)}
@@ -142,9 +155,9 @@ export default function RoutesPage() {
                         variant="outline"
                         size="sm"
                         className="border-brand-orange text-brand-orange hover:bg-brand-orange hover:text-white transition-colors"
-                        onClick={() => navigate(`/?destination=${route.id}`)}
+                        onClick={() => openCalcModal(route)}
                       >
-                        Selecionar
+                        Calcular Frete
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -170,24 +183,22 @@ export default function RoutesPage() {
                 className="overflow-hidden border-l-4 border-l-brand-blue shadow-sm"
               >
                 <CardContent className="p-4 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-bold text-lg text-brand-blue flex items-center gap-1">
-                        <MapPin className="h-4 w-4" /> {route.destino} - {route.uf}
-                      </h3>
-                      <div className="text-sm text-slate-500 mt-1">
-                        <Badge variant="outline" className="bg-slate-100 mr-2">
-                          {route.regiao}
-                        </Badge>
-                        {route.km.toLocaleString('pt-BR')} km
-                      </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-brand-blue flex items-center gap-1">
+                      <MapPin className="h-4 w-4" /> {route.destino} - {route.uf}
+                    </h3>
+                    <div className="text-sm text-slate-500 mt-1">
+                      <Badge variant="outline" className="bg-slate-100 mr-2">
+                        {route.regiao}
+                      </Badge>{' '}
+                      {route.km.toLocaleString('pt-BR')} km
                     </div>
                   </div>
                   <Button
                     className="w-full bg-brand-orange hover:bg-orange-600 text-white"
-                    onClick={() => navigate(`/?destination=${route.id}`)}
+                    onClick={() => openCalcModal(route)}
                   >
-                    Calcular Frete <ExternalLink className="h-4 w-4 ml-2" />
+                    Calcular Frete <Calculator className="h-4 w-4 ml-2" />
                   </Button>
                 </CardContent>
               </Card>
@@ -240,6 +251,21 @@ export default function RoutesPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={calcModalOpen} onOpenChange={setCalcModalOpen}>
+        <DialogContent className="max-w-4xl overflow-y-auto max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-brand-blue">
+              Simular Frete: {selectedRouteForCalc?.destino} - {selectedRouteForCalc?.uf}
+            </DialogTitle>
+            <DialogDescription>
+              Insira os dados da carga para simular o valor do frete com a regra de diesel vigente
+              para a data escolhida.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRouteForCalc && <FreightCalculator preselectedRoute={selectedRouteForCalc} />}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
