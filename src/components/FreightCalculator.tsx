@@ -68,12 +68,28 @@ export function FreightCalculator({
     setErrorMsg(null)
 
     try {
-      const tarifaRes = await calcularTarifaBase({
-        rota_id: selectedRoute.id,
-        tipo_veiculo: vehicle,
-        peso_kg: Number(weight),
-        volume_m3: Number(volume),
-      })
+      let tarifaRes
+      try {
+        tarifaRes = await calcularTarifaBase({
+          rota_id: selectedRoute.id,
+          tipo_veiculo: vehicle,
+          peso_kg: Number(weight),
+          volume_m3: Number(volume),
+        })
+      } catch (err: any) {
+        if (err?.status === 404 || err?.response?.code === 404) {
+          const description =
+            err?.response?.message || 'Tarifa não encontrada para este veículo nesta rota.'
+          setErrorMsg(description)
+          toast({
+            title: 'Tarifa Indisponível',
+            description,
+            variant: 'destructive',
+          })
+          return // Stop execution, finally block will run to reset loading state
+        }
+        throw err // Re-throw if it's a different error
+      }
 
       const dieselRes = await calcularDiesel({
         rota_id: selectedRoute.id,
@@ -132,19 +148,11 @@ export function FreightCalculator({
       if (onCalculate) onCalculate()
     } catch (err: any) {
       console.error('Erro no cálculo de frete:', err)
-      let description = getErrorMessage(err)
-      let title = 'Erro no cálculo'
-
-      if (err?.status === 404 || err?.response?.code === 404) {
-        title = 'Tarifa Indisponível'
-        description =
-          err?.response?.message || 'Tarifa não encontrada para este veículo nesta rota.'
-      }
-
+      const description = getErrorMessage(err)
       setErrorMsg(description)
 
       toast({
-        title,
+        title: 'Erro no cálculo',
         description,
         variant: 'destructive',
       })
