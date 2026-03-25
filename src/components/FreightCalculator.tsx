@@ -21,7 +21,7 @@ import {
 } from '@/services/api'
 import { vehicles } from '@/lib/data'
 import { useAuth } from '@/hooks/use-auth'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 import { CalculationResults } from '@/components/CalculationResults'
 import { Loader2, Calculator, AlertCircle } from 'lucide-react'
 
@@ -45,6 +45,7 @@ export function FreightCalculator({
   const [isCalculating, setIsCalculating] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
 
   useEffect(() => {
     if (!preselectedRoute) {
@@ -66,6 +67,7 @@ export function FreightCalculator({
     setIsCalculating(true)
     setResult(null)
     setErrorMsg(null)
+    setFieldErrors({})
 
     try {
       let tarifaRes
@@ -137,8 +139,6 @@ export function FreightCalculator({
         validity: tarifaRes.data_vigencia,
       }
 
-      setResult(calcResult)
-
       if (user?.id) {
         await createCalculo({
           usuario_id: user.id,
@@ -154,15 +154,21 @@ export function FreightCalculator({
         })
       }
 
+      setResult(calcResult)
       toast({ title: 'Sucesso', description: 'Cálculo realizado com sucesso.' })
       if (onCalculate) onCalculate()
     } catch (err: any) {
       console.error('Erro no cálculo de frete:', err)
       const description = getErrorMessage(err)
+      const extractedErrs = extractFieldErrors(err)
+
       setErrorMsg(description)
+      if (Object.keys(extractedErrs).length > 0) {
+        setFieldErrors(extractedErrs)
+      }
 
       toast({
-        title: 'Erro no cálculo',
+        title: 'Erro na operação',
         description,
         variant: 'destructive',
       })
@@ -260,7 +266,19 @@ export function FreightCalculator({
         >
           <AlertCircle className="h-4 w-4 !text-red-600" />
           <AlertTitle className="text-red-800 font-semibold">Atenção</AlertTitle>
-          <AlertDescription className="text-red-700">{errorMsg}</AlertDescription>
+          <AlertDescription className="text-red-700 mt-2 flex flex-col gap-2">
+            <p>{errorMsg}</p>
+            {Object.keys(fieldErrors).length > 0 && (
+              <ul className="list-disc pl-5 text-sm marker:text-red-500">
+                {Object.entries(fieldErrors).map(([field, msg]) => (
+                  <li key={field}>
+                    <span className="font-semibold capitalize">{field.replace('_', ' ')}:</span>{' '}
+                    {msg}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </AlertDescription>
         </Alert>
       )}
 
