@@ -11,7 +11,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { calcularTarifaBase, calcularDiesel, createCalculo, getRotas } from '@/services/api'
+import {
+  calcularTarifaBase,
+  calcularDiesel,
+  calcularPedagio,
+  createCalculo,
+  getRotas,
+} from '@/services/api'
 import { vehicles } from '@/lib/data'
 import { useAuth } from '@/hooks/use-auth'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -71,7 +77,20 @@ export function FreightCalculator({
         data_calculo: calcDate,
       })
 
-      const finalTotal = tarifaRes.valor_total - tarifaRes.valor_diesel + dieselRes.valor_diesel
+      const pedagioRes = await calcularPedagio({
+        rota_id: selectedRoute.id,
+        tipo_veiculo: vehicle,
+      })
+
+      const tollValue = pedagioRes.valor_pedagio
+      const dieselValue = dieselRes.valor_diesel
+
+      const finalTotal =
+        tarifaRes.valor_total -
+        tarifaRes.valor_diesel -
+        tarifaRes.valor_pedagio +
+        dieselValue +
+        tollValue
 
       const calcResult = {
         route: {
@@ -83,8 +102,8 @@ export function FreightCalculator({
         },
         vehicle: vehicles.find((v) => v.id === vehicle) || vehicles[0],
         baseFreight: tarifaRes.valor_tarifa_base,
-        dieselCost: dieselRes.valor_diesel,
-        toll: tarifaRes.valor_pedagio,
+        dieselCost: dieselValue,
+        toll: tollValue,
         total: finalTotal,
         ratePerKm: tarifaRes.valor_tarifa_por_km,
         validity: tarifaRes.data_vigencia,
@@ -99,8 +118,8 @@ export function FreightCalculator({
         peso_kg: Number(weight),
         volume_m3: Number(volume),
         valor_tarifa_base: tarifaRes.valor_tarifa_base,
-        valor_diesel: dieselRes.valor_diesel,
-        valor_pedagio: tarifaRes.valor_pedagio,
+        valor_diesel: dieselValue,
+        valor_pedagio: tollValue,
         valor_total: finalTotal,
         data_calculo: new Date(calcDate + 'T12:00:00Z').toISOString(),
       })

@@ -34,3 +34,10 @@ export const calcularDiesel = async (data: {
     body: JSON.stringify(data),
   })
 }
+
+export const calcularPedagio = async (data: { rota_id: string; tipo_veiculo: string }) => {
+  return await pb.send('/backend/v1/calcular-pedagio', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}

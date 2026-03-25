@@ -23,7 +23,8 @@ routerAdd(
     try {
       tarifa = $app.findFirstRecordByFilter(
         'tarifas',
-        "rota_id = '" + rotaId + "' && tipo_veiculo = '" + tipoVeiculo + "'",
+        'rota_id = {:rota_id} && tipo_veiculo = {:tipo_veiculo}',
+        { rota_id: rotaId, tipo_veiculo: tipoVeiculo },
       )
     } catch (err) {
       throw new NotFoundError('Tarifa não encontrada para este veículo nesta rota.')
@@ -37,7 +38,7 @@ routerAdd(
     const dieselCost = km * 1.5
     const weightBonus = pesoKg * 0.1
     const volumeBonus = volumeM3 * 2
-    const toll = (km / 100) * 20
+    const toll = 0 // Pedágio agora é calculado separadamente
     const total = valorTarifaBase + dieselCost + toll + weightBonus + volumeBonus
 
     let dataVigencia = tarifa.getString('data_vigencia_fim')
