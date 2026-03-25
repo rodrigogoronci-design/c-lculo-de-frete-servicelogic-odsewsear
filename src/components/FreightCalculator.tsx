@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import {
   calcularTarifaBase,
@@ -22,7 +23,7 @@ import { vehicles } from '@/lib/data'
 import { useAuth } from '@/hooks/use-auth'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { CalculationResults } from '@/components/CalculationResults'
-import { Loader2, Calculator } from 'lucide-react'
+import { Loader2, Calculator, AlertCircle } from 'lucide-react'
 
 export function FreightCalculator({
   preselectedRoute,
@@ -43,6 +44,7 @@ export function FreightCalculator({
   const [calcDate, setCalcDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [isCalculating, setIsCalculating] = useState(false)
   const [result, setResult] = useState<any>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
     if (!preselectedRoute) {
@@ -63,6 +65,8 @@ export function FreightCalculator({
 
     setIsCalculating(true)
     setResult(null)
+    setErrorMsg(null)
+
     try {
       const tarifaRes = await calcularTarifaBase({
         rota_id: selectedRoute.id,
@@ -127,9 +131,21 @@ export function FreightCalculator({
       toast({ title: 'Sucesso', description: 'Cálculo realizado e salvo com sucesso.' })
       if (onCalculate) onCalculate()
     } catch (err: any) {
+      console.error('Erro no cálculo de frete:', err)
+      let description = getErrorMessage(err)
+      let title = 'Erro no cálculo'
+
+      if (err?.status === 404 || err?.response?.code === 404) {
+        title = 'Tarifa Indisponível'
+        description =
+          err?.response?.message || 'Tarifa não encontrada para este veículo nesta rota.'
+      }
+
+      setErrorMsg(description)
+
       toast({
-        title: 'Erro no cálculo',
-        description: getErrorMessage(err),
+        title,
+        description,
         variant: 'destructive',
       })
     } finally {
@@ -218,6 +234,17 @@ export function FreightCalculator({
           </Button>
         </div>
       </div>
+
+      {errorMsg && (
+        <Alert
+          variant="destructive"
+          className="bg-red-50 text-red-900 border-red-200 animate-fade-in-up"
+        >
+          <AlertCircle className="h-4 w-4 !text-red-600" />
+          <AlertTitle className="text-red-800 font-semibold">Atenção</AlertTitle>
+          <AlertDescription className="text-red-700">{errorMsg}</AlertDescription>
+        </Alert>
+      )}
 
       {result && <CalculationResults {...result} />}
     </div>
