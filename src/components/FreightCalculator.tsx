@@ -78,17 +78,25 @@ export function FreightCalculator({
         })
       } catch (err: any) {
         if (err?.status === 404 || err?.response?.code === 404) {
-          const description =
-            err?.response?.message || 'Tarifa não encontrada para este veículo nesta rota.'
+          const apiMessage = err?.response?.message || err?.message
+          const isGenericMessage =
+            !apiMessage ||
+            apiMessage === 'Not Found' ||
+            apiMessage === 'Something went wrong while processing your request.'
+
+          const description = isGenericMessage
+            ? 'Tarifa não encontrada para este veículo nesta rota.'
+            : apiMessage
+
           setErrorMsg(description)
           toast({
             title: 'Tarifa Indisponível',
             description,
             variant: 'destructive',
           })
-          return // Stop execution, finally block will run to reset loading state
+          return
         }
-        throw err // Re-throw if it's a different error
+        throw err
       }
 
       const dieselRes = await calcularDiesel({
@@ -131,20 +139,22 @@ export function FreightCalculator({
 
       setResult(calcResult)
 
-      await createCalculo({
-        usuario_id: user?.id,
-        rota_id: selectedRoute.id,
-        tipo_veiculo: vehicle,
-        peso_kg: Number(weight),
-        volume_m3: Number(volume),
-        valor_tarifa_base: tarifaRes.valor_tarifa_base,
-        valor_diesel: dieselValue,
-        valor_pedagio: tollValue,
-        valor_total: finalTotal,
-        data_calculo: new Date(calcDate + 'T12:00:00Z').toISOString(),
-      })
+      if (user?.id) {
+        await createCalculo({
+          usuario_id: user.id,
+          rota_id: selectedRoute.id,
+          tipo_veiculo: vehicle,
+          peso_kg: Number(weight),
+          volume_m3: Number(volume),
+          valor_tarifa_base: tarifaRes.valor_tarifa_base,
+          valor_diesel: dieselValue,
+          valor_pedagio: tollValue,
+          valor_total: finalTotal,
+          data_calculo: new Date(calcDate + 'T12:00:00Z').toISOString(),
+        })
+      }
 
-      toast({ title: 'Sucesso', description: 'Cálculo realizado e salvo com sucesso.' })
+      toast({ title: 'Sucesso', description: 'Cálculo realizado com sucesso.' })
       if (onCalculate) onCalculate()
     } catch (err: any) {
       console.error('Erro no cálculo de frete:', err)
@@ -231,7 +241,7 @@ export function FreightCalculator({
           <Button
             onClick={handleCalculate}
             disabled={isCalculating || (!preselectedRoute && !routeId)}
-            className="w-full bg-brand-blue hover:bg-blue-900 text-white h-10 shadow-md"
+            className="w-full bg-brand-blue hover:bg-blue-900 text-white h-10 shadow-md transition-colors"
           >
             {isCalculating ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
